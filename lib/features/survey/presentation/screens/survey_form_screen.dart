@@ -128,11 +128,130 @@ class _SurveyFormScreenState extends State<SurveyFormScreen> {
     });
   }
 
+  Future<void> _showSuccessDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.all(24),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Ícono de éxito animado
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.check_circle,
+                size: 60,
+                color: Colors.green.shade600,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '¡Respuestas Guardadas!',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Los datos se han registrado correctamente en el dispositivo',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            // Botón primario: Registrar otra
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => Navigator.pop(context, false),
+                icon: const Icon(Icons.replay),
+                label: const Text('Registrar Otra Respuesta'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF1565C0),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Botón secundario: Terminar
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.pop(context, true),
+                icon: const Icon(Icons.home),
+                label: const Text('Terminar por ahora'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey[700],
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (result == true) {
+      // Usuario eligió "Terminar"
+      Navigator.pop(context, true);
+    } else {
+      // Usuario eligió "Registrar otra" - Resetear formulario
+      setState(() {
+        _answers.clear();
+      });
+      // Scroll al inicio
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeOut,
+        );
+      }
+      // Feedback visual
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('📝 Formulario listo para nueva respuesta'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   double _calculateProgress() {
     if (_surveyData == null) return 0.0;
     final fields = _surveyData!['fields'] as List;
     if (fields.isEmpty) return 0.0;
     return _answers.length / fields.length;
+  }
+
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -198,6 +317,7 @@ class _SurveyFormScreenState extends State<SurveyFormScreen> {
     final fields = _surveyData!['fields'] as List;
 
     return ListView.separated(
+      controller: _scrollController,
       padding: const EdgeInsets.all(16),
       itemCount: fields.length,
       separatorBuilder: (context, index) => const SizedBox(height: 24),

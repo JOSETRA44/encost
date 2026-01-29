@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
 import '../../../../core/database/database_helper.dart';
 import 'package:uuid/uuid.dart';
 import '../../../survey/presentation/screens/survey_form_screen.dart';
+import 'create_survey_screen.dart';
 
 /// TAB 1: Lista de Encuestas Disponibles
 /// 
@@ -21,6 +23,7 @@ class SurveysListScreen extends ConsumerStatefulWidget {
 
 class _SurveysListScreenState extends ConsumerState<SurveysListScreen> {
   List<Map<String, dynamic>> _surveys = [];
+  Map<String, int> _responseCounts = {}; // Contador de respuestas por encuesta
   bool _isLoading = true;
 
   @override
@@ -33,12 +36,27 @@ class _SurveysListScreenState extends ConsumerState<SurveysListScreen> {
     setState(() => _isLoading = true);
     try {
       final db = await DatabaseHelper.instance.database;
+      
+      // Cargar encuestas
       final result = await db.query(
         'surveys',
         orderBy: 'created_at DESC',
       );
+
+      // Cargar conteo de respuestas para cada encuesta
+      final counts = <String, int>{};
+      for (var survey in result) {
+        final surveyId = survey['id'] as String;
+        final countResult = await db.rawQuery(
+          'SELECT COUNT(*) as count FROM responses WHERE survey_id = ?',
+          [surveyId],
+        );
+        counts[surveyId] = Sqflite.firstIntValue(countResult) ?? 0;
+      }
+
       setState(() {
         _surveys = result;
+        _responseCounts = counts;
         _isLoading = false;
       });
     } catch (e) {
@@ -236,11 +254,38 @@ class _SurveysListScreenState extends ConsumerState<SurveysListScreen> {
           : _surveys.isEmpty
               ? _buildEmptyState()
               : _buildSurveysList(),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showImportDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Importar JSON'),
-        tooltip: 'Importar nuevo cuestionario desde JSON',
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CreateSurveyScreen(),
+                ),
+              );
+              if (result == true && mounted) {
+                _loadSurveys();
+              }
+            },
+            heroTag: 'create_survey',
+            icon: const Icon(Icons.edit),
+            label: const Text('Crear Manualmente'),
+            backgroundColor: const Color(0xFF1565C0),
+            tooltip: 'Crear encuesta con constructor visual',
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton.extended(
+            onPressed: _showImportDialog,
+            heroTag: 'import_json',
+            icon: const Icon(Icons.code),
+            label: const Text('Importar JSON'),
+            backgroundColor: Colors.grey[700],
+            tooltip: 'Importar encuesta desde JSON',
+          ),
+        ],
       ),
     );
   }
@@ -288,9 +333,11 @@ class _SurveysListScreenState extends ConsumerState<SurveysListScreen> {
         itemCount: _surveys.length,
         itemBuilder: (context, index) {
           final survey = _surveys[index];
+          final surveyId = survey['id'] as String;
           final createdAt = DateTime.fromMillisecondsSinceEpoch(
             survey['created_at'] as int,
           );
+          final responseCount = _responseCounts[surveyId] ?? 0;
 
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
@@ -303,18 +350,54 @@ class _SurveysListScreenState extends ConsumerState<SurveysListScreen> {
                 horizontal: 16,
                 vertical: 12,
               ),
-              leading: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1565C0).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.description,
-                  color: Color(0xFF1565C0),
-                  size: 28,
-                ),
+              leading: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1565C0).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.description,
+                      color: Color(0xFF1565C0),
+                      size: 28,
+                    ),
+                  ),
+                  // Badge de contador
+                  if (responseCount > 0)
+                    Positioned(
+                      right: -6,
+                      top: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade600,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          '$responseCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               title: Text(
                 survey['title'] as String,
@@ -341,6 +424,27 @@ class _SurveysListScreenState extends ConsumerState<SurveysListScreen> {
                       fontSize: 12,
                     ),
                   ),
+                  if (responseCount > 0) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          size: 14,
+                          color: Colors.green.shade600,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$responseCount respuesta${responseCount != 1 ? 's' : ''} registrada${responseCount != 1 ? 's' : ''}',
+                          style: TextStyle(
+                            color: Colors.green.shade700,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
               trailing: FilledButton(

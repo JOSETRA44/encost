@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:csv/csv.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/database/database_helper.dart';
 
 /// TAB 2: Historial de Respuestas
@@ -7,7 +12,7 @@ import '../../../../core/database/database_helper.dart';
 /// Features:
 /// - Ver sesiones de recolección completadas
 /// - Marcar como exportadas
-/// - Exportar a CSV/Excel (próximamente)
+/// - Exportar a CSV con compartir (WhatsApp, Email, etc.)
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
@@ -19,6 +24,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   List<Map<String, dynamic>> _responses = [];
   bool _isLoading = true;
   bool _showExportedOnly = false;
+  bool _isExporting = false;
 
   @override
   void initState() {
@@ -75,6 +81,144 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al actualizar: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportToCSV() async {
+    if (_responses.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay respuestas para exportar'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isExporting = true);
+
+    try {
+      final db = await DatabaseHelper.instance.database;
+      final List<List<dynamic>> csvData = [];
+      
+      // Encabezados
+      csvData.add([
+        'ID Respuesta',
+        'Encuesta',
+        'Fecha',
+        'Hora',
+        'Pregunta ID',
+        'Pregunta',
+        'Respuesta',
+        'Estado'
+      ]);
+
+      // Obtener todas las respuestas con sus answers
+      for (final response in _responses) {
+        final responseId = response['id'] as String;
+        final surveyId = response['survey_id'] as String;
+        final surveyTitle = response['survey_title'] as String? ?? 'Sin título';
+        final timestamp = DateTime.fromMillisecondsSinceEpoch(
+          response['timestamp'] as int,
+        );
+        final isExported = (response['is_exported'] as int) == 1;
+
+        // Obtener estructura de la encuesta para etiquetas de preguntas
+        final surveyResult = await db.query(
+          'surveys',
+          where: 'id = ?',
+          whereArgs: [surveyId],
+        );
+        
+        Map<String, String> questionLabels = {};
+        if (surveyResult.isNotEmpty) {
+          final jsonStructure = surveyResult.first['json_structure'] as String;
+          final surveyJson = jsonDecode(jsonStructure) as Map<String, dynamic>;
+          final fields = surveyJson['fields'] as List<dynamic>;
+          for (final field in fields) {
+            final fieldMap = field as Map<String, dynamic>;
+            questionLabels[fieldMap['id'] as String] = fieldMap['label'] as String;
+          }
+        }
+
+        // Obtener answers
+        final answers = await db.query(
+          'answers',
+          where: 'response_id = ?',
+          whereArgs: [responseId],
+          orderBy: 'question_id ASC',
+        );
+
+        if (answers.isEmpty) {
+          // Si no hay respuestas, agregar fila vacía
+          csvData.add([
+            responseId,
+            surveyTitle,
+            '${timestamp.day}/${timestamp.month}/${timestamp.year}',
+            '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}',
+            '',
+            '',
+            '(sin respuestas)',
+            isExported ? 'Exportada' : 'Pendiente',
+          ]);
+        } else {
+          // Agregar una fila por cada respuesta
+          for (final answer in answers) {
+            final questionId = answer['question_id'] as String;
+            final value = answer['value'] as String;
+            final questionLabel = questionLabels[questionId] ?? questionId;
+
+            csvData.add([
+              responseId,
+              surveyTitle,
+              '${timestamp.day}/${timestamp.month}/${timestamp.year}',
+              '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}',
+              questionId,
+              questionLabel,
+              value,
+              isExported ? 'Exportada' : 'Pendiente',
+            ]);
+          }
+        }
+      }
+
+      // Generar CSV
+      final csvString = const ListToCsvConverter().convert(csvData);
+      
+      // Guardar archivo
+      final directory = await getTemporaryDirectory();
+      final timestamp = DateTime.now();
+      final fileName = 'encuestas_${timestamp.year}${timestamp.month.toString().padLeft(2, '0')}${timestamp.day.toString().padLeft(2, '0')}_${timestamp.hour}${timestamp.minute}.csv';
+      final file = File('${directory.path}/$fileName');
+      await file.writeAsString(csvString, encoding: utf8);
+
+      setState(() => _isExporting = false);
+
+      // Compartir archivo
+      final result = await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Exportación de Encuestas',
+        text: 'Datos de ${_responses.length} respuesta(s) exportadas en formato CSV',
+      );
+
+      if (result.status == ShareResultStatus.success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ CSV exportado correctamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isExporting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al exportar: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -152,6 +296,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           : _responses.isEmpty
               ? _buildEmptyState()
               : _buildResponsesList(),
+      floatingActionButton: _responses.isNotEmpty
+          ? FloatingActionButton.extended(
+              onPressed: _isExporting ? null : _exportToCSV,
+              icon: _isExporting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.file_download),
+              label: Text(_isExporting ? 'Exportando...' : 'Exportar CSV'),
+              backgroundColor: _isExporting ? Colors.grey : const Color(0xFF1565C0),
+              tooltip: 'Exportar respuestas a CSV y compartir',
+            )
+          : null,
     );
   }
 

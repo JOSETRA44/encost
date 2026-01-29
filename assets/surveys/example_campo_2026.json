@@ -1,0 +1,40 @@
+{
+  "id": "campo_v1",
+  "title": "Encuesta Campo 2026",
+  "version": "1.0",
+  "fields": [
+    {
+      "id": "q1",
+      "type": "text",
+      "label": "Nombre del encuestado"
+    },
+    {
+      "id": "q2",
+      "type": "number",
+      "label": "Edad"
+    },
+    {
+      "id": "q3",
+      "type": "radio",
+      "label": "¿Tiene acceso a electricidad?",
+      "options": ["Sí", "No"]
+    },
+    {
+      "id": "q4",
+      "type": "radio",
+      "label": "¿Tiene acceso a agua potable?",
+      "options": ["Sí", "No", "Parcial"]
+    },
+    {
+      "id": "q5",
+      "type": "checkbox",
+      "label": "Servicios disponibles en el hogar (selecciona todos los que apliquen)",
+      "options": ["Internet", "TV por cable", "Teléfono fijo", "Ninguno"]
+    },
+    {
+      "id": "q6",
+      "type": "text",
+      "label": "Observaciones adicionales"
+    }
+  ]
+}

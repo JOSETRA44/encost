@@ -1,0 +1,150 @@
+{
+  "id": "survey-2026-001",
+  "version": "1.0.0",
+  "title": "Encuesta de Satisfacción del Cliente",
+  "description": "Ayúdanos a mejorar nuestros servicios compartiendo tu experiencia",
+  "createdAt": "2026-01-29T10:00:00Z",
+  "expiresAt": "2026-12-31T23:59:59Z",
+  "metadata": {
+    "author": "Departamento de Calidad",
+    "category": "satisfaccion",
+    "tags": ["cliente", "servicio", "calidad"]
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "type": "text",
+      "title": "Nombre completo",
+      "description": "Por favor ingresa tu nombre y apellidos",
+      "required": true,
+      "validation": {
+        "minLength": 3,
+        "maxLength": 100
+      },
+      "placeholder": "Ej: María González"
+    },
+    {
+      "id": "q2",
+      "type": "numeric",
+      "title": "Edad",
+      "required": true,
+      "validation": {
+        "min": 18,
+        "max": 120,
+        "decimals": 0
+      },
+      "unit": "años"
+    },
+    {
+      "id": "q3",
+      "type": "single_choice",
+      "title": "Nivel de satisfacción general",
+      "required": true,
+      "options": [
+        {
+          "id": "opt1",
+          "label": "Muy insatisfecho",
+          "value": "1"
+        },
+        {
+          "id": "opt2",
+          "label": "Insatisfecho",
+          "value": "2"
+        },
+        {
+          "id": "opt3",
+          "label": "Neutral",
+          "value": "3"
+        },
+        {
+          "id": "opt4",
+          "label": "Satisfecho",
+          "value": "4"
+        },
+        {
+          "id": "opt5",
+          "label": "Muy satisfecho",
+          "value": "5"
+        }
+      ],
+      "displayStyle": "radio"
+    },
+    {
+      "id": "q4",
+      "type": "multiple_choice",
+      "title": "Servicios que utilizas",
+      "description": "Selecciona todos los que apliquen",
+      "required": false,
+      "options": [
+        {
+          "id": "opt1",
+          "label": "Internet de alta velocidad",
+          "value": "internet"
+        },
+        {
+          "id": "opt2",
+          "label": "Telefonía móvil",
+          "value": "mobile"
+        },
+        {
+          "id": "opt3",
+          "label": "Telefonía fija",
+          "value": "landline"
+        },
+        {
+          "id": "opt4",
+          "label": "Televisión por cable",
+          "value": "tv"
+        },
+        {
+          "id": "opt5",
+          "label": "Streaming",
+          "value": "streaming"
+        }
+      ],
+      "validation": {
+        "minSelections": 1,
+        "maxSelections": 5
+      }
+    },
+    {
+      "id": "q5",
+      "type": "range",
+      "title": "Probabilidad de recomendación",
+      "description": "Del 1 al 10, ¿qué tan probable es que recomiendes nuestros servicios?",
+      "required": true,
+      "validation": {
+        "min": 1,
+        "max": 10,
+        "step": 1
+      },
+      "labels": {
+        "min": "Nada probable",
+        "max": "Muy probable"
+      }
+    },
+    {
+      "id": "q6",
+      "type": "text",
+      "title": "Comentarios adicionales",
+      "description": "Comparte cualquier sugerencia o comentario",
+      "required": false,
+      "validation": {
+        "maxLength": 500
+      },
+      "placeholder": "Escribe aquí tus comentarios..."
+    },
+    {
+      "id": "q7",
+      "type": "numeric",
+      "title": "Años como cliente",
+      "required": false,
+      "validation": {
+        "min": 0,
+        "max": 50,
+        "decimals": 1
+      },
+      "unit": "años"
+    }
+  ]
+}

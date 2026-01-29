@@ -104,14 +104,10 @@ class _SurveyFormScreenState extends State<SurveyFormScreen> {
         whereArgs: [widget.responseId],
       );
 
+      setState(() => _isSaving = false);
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✓ Respuestas guardadas correctamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context, true);
+        _showSuccessDialog();
       }
     } catch (e) {
       setState(() => _isSaving = false);

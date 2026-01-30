@@ -28,6 +28,9 @@ class _SurveyFormScreenState extends State<SurveyFormScreen> {
   final Map<String, dynamic> _answers = {};
   bool _isLoading = true;
   bool _isSaving = false;
+  
+  // GlobalKey para forzar rebuild completo del formulario
+  GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -113,6 +116,8 @@ class _SurveyFormScreenState extends State<SurveyFormScreen> {
         // Limpiar respuestas
         setState(() {
           _answers.clear();
+          // CRITICAL FIX: Recrear GlobalKey para forzar rebuild completo
+          _formKey = GlobalKey<FormState>();
         });
         
         // Scroll al inicio
@@ -231,6 +236,7 @@ class _SurveyFormScreenState extends State<SurveyFormScreen> {
     final fields = _surveyData!['fields'] as List;
 
     return ListView.separated(
+      key: _formKey,
       controller: _scrollController,
       padding: const EdgeInsets.all(16),
       itemCount: fields.length,

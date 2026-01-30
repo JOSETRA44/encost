@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'question_widgets/matrix_question_widget.dart';
 
 /// Factory Pattern - Motor de renderizado dinámico de formularios
 /// 
 /// Arquitectura: Fábrica que convierte JSON en Widgets
-/// Formato soportado: { "type": "text|number|radio|checkbox", ... }
+/// Formato soportado: { "type": "text|number|radio|checkbox|matrix", ... }
 class SurveyQuestionFactory {
   /// Crea un widget de pregunta basado en el JSON
   /// 
@@ -55,6 +56,18 @@ class SurveyQuestionFactory {
           options: options,
           onChanged: onChanged,
           initialValue: initialValue as List<String>?,
+        );
+
+      case 'matrix':
+        final rows = (field['rows'] as List?)?.cast<String>() ?? [];
+        final columns = (field['columns'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        return MatrixQuestionWidget(
+          id: id,
+          label: label,
+          rows: rows,
+          columns: columns,
+          onChanged: onChanged,
+          initialValue: initialValue as Map<String, Map<String, dynamic>>?,
         );
 
       default:

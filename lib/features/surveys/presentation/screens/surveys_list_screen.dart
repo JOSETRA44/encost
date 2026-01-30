@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
 import '../../../../core/database/database_helper.dart';
+import '../../../../core/utils/csv_exporter.dart';
 import 'package:uuid/uuid.dart';
 import '../../../survey/presentation/screens/survey_form_screen.dart';
 import 'create_survey_screen.dart';
@@ -64,6 +65,51 @@ class _SurveysListScreenState extends ConsumerState<SurveysListScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al cargar encuestas: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportSurveyToCSV(String surveyId, String surveyTitle) async {
+    try {
+      // 🚀 USAR NUEVO EXPORTADOR HORIZONTAL
+      final result = await CsvExporter.exportSurvey(surveyId, surveyTitle);
+      
+      if (!result.success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.errorMessage ?? 'Error desconocido'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+      
+      // Compartir archivo
+      await CsvExporter.shareFile(
+        result.file!,
+        'Exportación: $surveyTitle',
+        'Datos de ${result.rowCount} respuesta(s) en formato CSV horizontal',
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✓ CSV exportado: ${result.rowCount} respuestas'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al exportar: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -434,12 +480,16 @@ class _SurveysListScreenState extends ConsumerState<SurveysListScreen> {
                           color: Colors.green.shade600,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          '$responseCount respuesta${responseCount != 1 ? 's' : ''} registrada${responseCount != 1 ? 's' : ''}',
-                          style: TextStyle(
-                            color: Colors.green.shade700,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                        Expanded(
+                          child: Text(
+                            '$responseCount respuesta${responseCount != 1 ? 's' : ''} registrada${responseCount != 1 ? 's' : ''}',
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                         ),
                       ],
@@ -447,18 +497,36 @@ class _SurveysListScreenState extends ConsumerState<SurveysListScreen> {
                   ],
                 ],
               ),
-              trailing: FilledButton(
-                onPressed: () => _startSurvey(
-                  survey['id'] as String,
-                  survey['title'] as String,
-                ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF1565C0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Botón de exportación
+                  if (responseCount > 0)
+                    IconButton(
+                      onPressed: () => _exportSurveyToCSV(
+                        surveyId,
+                        survey['title'] as String,
+                      ),
+                      icon: const Icon(Icons.file_download),
+                      color: Colors.green.shade700,
+                      tooltip: 'Exportar CSV de esta encuesta',
+                    ),
+                  const SizedBox(width: 4),
+                  // Botón de iniciar
+                  FilledButton(
+                    onPressed: () => _startSurvey(
+                      surveyId,
+                      survey['title'] as String,
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF1565C0),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Iniciar'),
                   ),
-                ),
-                child: const Text('Iniciar'),
+                ],
               ),
             ),
           );

@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:convert';
-import 'dart:io';
-import 'package:csv/csv.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../../../core/database/database_helper.dart';
+import '../../../../core/utils/csv_exporter.dart';
 
 /// TAB 2: Historial de Respuestas
 /// 
@@ -87,10 +83,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   Future<void> _exportToCSV() async {
-    debugPrint('🔷 INICIO EXPORTACIÓN CSV');
-    
     if (_responses.isEmpty) {
-      debugPrint('❌ EXPORT ERROR: Lista de respuestas vacía');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -105,149 +98,41 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     setState(() => _isExporting = true);
 
     try {
-      debugPrint('📊 Procesando ${_responses.length} respuestas...');
-      final db = await DatabaseHelper.instance.database;
-      final List<List<dynamic>> csvData = [];
+      // 🚀 USAR NUEVO EXPORTADOR HORIZONTAL
+      final result = await CsvExporter.exportAllResponses(_responses);
       
-      // Encabezados
-      csvData.add([
-        'ID Respuesta',
-        'Encuesta',
-        'Fecha',
-        'Hora',
-        'Pregunta ID',
-        'Pregunta',
-        'Respuesta',
-        'Estado'
-      ]);
-
-      // Obtener todas las respuestas con sus answers
-      for (final response in _responses) {
-        final responseId = response['id'] as String;
-        final surveyId = response['survey_id'] as String;
-        final surveyTitle = response['survey_title'] as String? ?? 'Sin título';
-        final timestamp = DateTime.fromMillisecondsSinceEpoch(
-          response['timestamp'] as int,
-        );
-        final isExported = (response['is_exported'] as int) == 1;
-
-        debugPrint('  📝 Procesando response: $responseId');
-
-        // Obtener estructura de la encuesta para etiquetas de preguntas
-        final surveyResult = await db.query(
-          'surveys',
-          where: 'id = ?',
-          whereArgs: [surveyId],
-        );
-        
-        Map<String, String> questionLabels = {};
-        if (surveyResult.isNotEmpty) {
-          try {
-            final jsonStructure = surveyResult.first['json_structure'] as String;
-            final surveyJson = jsonDecode(jsonStructure) as Map<String, dynamic>;
-            final fields = surveyJson['fields'] as List<dynamic>;
-            for (final field in fields) {
-              final fieldMap = field as Map<String, dynamic>;
-              questionLabels[fieldMap['id'] as String] = fieldMap['label'] as String;
-            }
-          } catch (jsonError) {
-            debugPrint('⚠️ ERROR parseando JSON de encuesta: $jsonError');
-          }
-        }
-
-        // Obtener answers
-        final answers = await db.query(
-          'answers',
-          where: 'response_id = ?',
-          whereArgs: [responseId],
-          orderBy: 'question_id ASC',
-        );
-
-        debugPrint('    └─ ${answers.length} respuestas encontradas');
-
-        if (answers.isEmpty) {
-          csvData.add([
-            responseId,
-            surveyTitle,
-            '${timestamp.day}/${timestamp.month}/${timestamp.year}',
-            '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}',
-            '',
-            '',
-            '(sin respuestas)',
-            isExported ? 'Exportada' : 'Pendiente',
-          ]);
-        } else {
-          for (final answer in answers) {
-            final questionId = answer['question_id'] as String;
-            final value = answer['value'] as String;
-            final questionLabel = questionLabels[questionId] ?? questionId;
-
-            csvData.add([
-              responseId,
-              surveyTitle,
-              '${timestamp.day}/${timestamp.month}/${timestamp.year}',
-              '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}',
-              questionId,
-              questionLabel,
-              value,
-              isExported ? 'Exportada' : 'Pendiente',
-            ]);
-          }
-        }
-      }
-
-      debugPrint('✅ Datos procesados: ${csvData.length} filas');
-
-      // Generar CSV
-      final csvString = const ListToCsvConverter().convert(csvData);
-      debugPrint('📄 CSV generado: ${csvString.length} caracteres');
-      
-      // Guardar archivo en directorio de documentos de la app
-      final directory = await getApplicationDocumentsDirectory();
-      debugPrint('📁 Directorio: ${directory.path}');
-      
-      final timestamp = DateTime.now();
-      final fileName = 'encuestas_${timestamp.year}${timestamp.month.toString().padLeft(2, '0')}${timestamp.day.toString().padLeft(2, '0')}_${timestamp.hour}${timestamp.minute}.csv';
-      final filePath = '${directory.path}/$fileName';
-      
-      debugPrint('💾 Guardando archivo: $filePath');
-      final file = File(filePath);
-      await file.writeAsString(csvString, encoding: utf8);
-      
-      // Verificar que el archivo existe
-      final fileExists = await file.exists();
-      final fileSize = await file.length();
-      debugPrint('🔍 Archivo existe: $fileExists, Tamaño: $fileSize bytes');
-      
-      if (!fileExists || fileSize == 0) {
-        throw 'El archivo CSV no se creó correctamente';
-      }
-
       setState(() => _isExporting = false);
-
+      
+      if (!result.success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.errorMessage ?? 'Error desconocido'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+      
       // Compartir archivo
-      debugPrint('📤 Compartiendo archivo...');
-      final result = await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'Exportación de Encuestas',
-        text: 'Datos de ${_responses.length} respuesta(s) exportadas en formato CSV',
+      await CsvExporter.shareFile(
+        result.file!,
+        'Exportación de Encuestas',
+        'Datos de ${result.rowCount} respuesta(s) en formato CSV horizontal',
       );
-
-      debugPrint('📬 Share result status: ${result.status}');
-
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✓ CSV exportado: $fileName'),
+            content: Text('✓ CSV exportado: ${result.fileName}'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
         );
       }
-    } catch (e, stackTrace) {
-      debugPrint('❌❌❌ ERROR EXPORT: $e');
-      debugPrint('Stack trace: $stackTrace');
       
+    } catch (e) {
       setState(() => _isExporting = false);
       
       if (mounted) {
@@ -255,7 +140,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           SnackBar(
             content: Text('Error al exportar: $e'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
           ),
         );
       }

@@ -1,0 +1,10 @@
+ID,Fecha,Hora,Nombre,DNI,Edad,Cultivos,Estado
+7f3a9d12,29/01/2026,18:30,Julián Pérez,43983220,25,"Papa, Maíz",Pendiente
+8b4c1e23,30/01/2026,09:00,María López,41223344,30,Quinua,Pendiente
+9d5f2a34,30/01/2026,14:15,Carlos Ruiz,40112233,42,"Papa, Quinua, Maíz",Exportada
+
+=== Censo Ganadero 2026 ===
+
+ID,Fecha,Hora,Comunidad,Tipo de Ganado,Estado
+a1b2c3d4,30/01/2026,10:30,San Juan,Vacuno: cantidad=5 | Ovino: cantidad=12,Pendiente
+e5f6g7h8,30/01/2026,15:45,Las Flores,Vacuno: cantidad=8 | Porcino: cantidad=3,Pendiente

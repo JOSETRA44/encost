@@ -1,0 +1,52 @@
+{
+  "id": "survey_ganaderia_2026",
+  "title": "Encuesta Ganadera - Costos de Producción",
+  "version": "2.0",
+  "fields": [
+    {
+      "id": "q1",
+      "type": "text",
+      "label": "Nombre del productor"
+    },
+    {
+      "id": "q2",
+      "type": "number",
+      "label": "Hectáreas totales"
+    },
+    {
+      "id": "q_matrix_costos",
+      "type": "matrix",
+      "label": "Matriz de Costos por Tipo de Ganado",
+      "rows": ["Vacuno", "Ovino", "Porcino", "Caprino"],
+      "columns": [
+        {
+          "key": "cantidad",
+          "label": "Cantidad (Cabezas)",
+          "type": "number"
+        },
+        {
+          "key": "precio_compra",
+          "label": "Precio Compra ($)",
+          "type": "number"
+        },
+        {
+          "key": "costo_mensual",
+          "label": "Costo Mensual ($)",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "q3",
+      "type": "radio",
+      "label": "¿Tiene seguro ganadero?",
+      "options": ["Sí", "No", "En trámite"]
+    },
+    {
+      "id": "q4",
+      "type": "checkbox",
+      "label": "Tipos de alimentación utilizados",
+      "options": ["Pastoreo natural", "Forraje", "Balanceado", "Suplementos"]
+    }
+  ]
+}

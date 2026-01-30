@@ -101,6 +101,9 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
       
       if (type == 'radio' || type == 'checkbox') {
         question['options'] = <String>[];
+      } else if (type == 'matrix') {
+        question['rows'] = <String>[];
+        question['columns'] = <Map<String, dynamic>>[];
       }
       
       final questionIndex = _questions.length;
@@ -185,6 +188,16 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
               onTap: () {
                 Navigator.pop(context);
                 _addQuestion('checkbox');
+              },
+            ),
+            _buildQuestionTypeOption(
+              icon: Icons.table_chart,
+              title: 'Matriz / Tabla',
+              subtitle: 'Tabla de datos con filas y columnas',
+              color: Colors.teal,
+              onTap: () {
+                Navigator.pop(context);
+                _addQuestion('matrix');
               },
             ),
             const SizedBox(height: 8),
@@ -394,6 +407,7 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
   Widget _buildQuestionCard(int index, Map<String, dynamic> question) {
     final type = question['type'] as String;
     final hasOptions = type == 'radio' || type == 'checkbox';
+    final isMatrix = type == 'matrix';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -471,6 +485,10 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
             if (hasOptions) ...[
               const SizedBox(height: 12),
               _buildOptionsEditor(question),
+            ],
+            if (isMatrix) ...[
+              const SizedBox(height: 12),
+              _buildMatrixEditor(question),
             ],
           ],
         ),
@@ -554,6 +572,238 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
     );
   }
 
+  Widget _buildMatrixEditor(Map<String, dynamic> question) {
+    final rows = question['rows'] as List<String>;
+    final columns = question['columns'] as List<Map<String, dynamic>>;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // FILAS
+        Row(
+          children: [
+            const Icon(Icons.table_rows, size: 18, color: Colors.teal),
+            const SizedBox(width: 6),
+            const Text(
+              'Filas:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...rows.asMap().entries.map((entry) {
+          final rowIndex = entry.key;
+          final row = entry.value;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: row,
+                    decoration: InputDecoration(
+                      hintText: 'Fila ${rowIndex + 1}',
+                      prefixIcon: const Icon(Icons.horizontal_rule, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        rows[rowIndex] = value;
+                      });
+                    },
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      rows.removeAt(rowIndex);
+                    });
+                  },
+                  icon: const Icon(Icons.close, size: 20),
+                  color: Colors.red,
+                ),
+              ],
+            ),
+          );
+        }),
+        OutlinedButton.icon(
+          onPressed: () {
+            setState(() {
+              rows.add('');
+            });
+          },
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('Agregar fila'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.teal,
+          ),
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // COLUMNAS
+        Row(
+          children: [
+            const Icon(Icons.view_column, size: 18, color: Colors.teal),
+            const SizedBox(width: 6),
+            const Text(
+              'Columnas:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...columns.asMap().entries.map((entry) {
+          final colIndex = entry.key;
+          final column = entry.value;
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            color: Colors.teal.shade50,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Columna ${colIndex + 1}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            columns.removeAt(colIndex);
+                          });
+                        },
+                        icon: const Icon(Icons.delete_outline, size: 20),
+                        color: Colors.red,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    initialValue: column['label'] as String,
+                    decoration: InputDecoration(
+                      labelText: 'Etiqueta',
+                      hintText: 'Ej: Cantidad, Precio',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 10,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        column['label'] = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          initialValue: column['key'] as String,
+                          decoration: InputDecoration(
+                            labelText: 'ID \u00fanico',
+                            hintText: 'Ej: cantidad',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 10,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              column['key'] = value.toLowerCase().replaceAll(' ', '_');
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: column['type'] as String,
+                          decoration: InputDecoration(
+                            labelText: 'Tipo',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 10,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'text', child: Text('Texto')),
+                            DropdownMenuItem(value: 'number', child: Text('N\u00famero')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                column['type'] = value;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+        OutlinedButton.icon(
+          onPressed: () {
+            setState(() {
+              columns.add({
+                'key': 'col${columns.length + 1}',
+                'label': '',
+                'type': 'text',
+              });
+            });
+          },
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('Agregar columna'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.teal,
+          ),
+        ),
+      ],
+    );
+  }
+
   IconData _getQuestionTypeIcon(String type) {
     switch (type) {
       case 'text':
@@ -564,6 +814,8 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
         return Icons.radio_button_checked;
       case 'checkbox':
         return Icons.check_box;
+      case 'matrix':
+        return Icons.table_chart;
       default:
         return Icons.help_outline;
     }
@@ -579,6 +831,8 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
         return Colors.orange;
       case 'checkbox':
         return Colors.purple;
+      case 'matrix':
+        return Colors.teal;
       default:
         return Colors.grey;
     }
@@ -594,6 +848,8 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
         return 'Opción única';
       case 'checkbox':
         return 'Opción múltiple';
+      case 'matrix':
+        return 'Matriz';
       default:
         return type;
     }

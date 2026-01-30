@@ -17,12 +17,16 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
   final _titleController = TextEditingController();
   final _versionController = TextEditingController(text: '1.0');
   final List<Map<String, dynamic>> _questions = [];
+  final Map<int, FocusNode> _focusNodes = {};
   bool _isSaving = false;
 
   @override
   void dispose() {
     _titleController.dispose();
     _versionController.dispose();
+    for (final node in _focusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -99,12 +103,26 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
         question['options'] = <String>[];
       }
       
+      final questionIndex = _questions.length;
       _questions.add(question);
+      
+      // Crear FocusNode para nueva pregunta
+      _focusNodes[questionIndex] = FocusNode();
+    });
+    
+    // Enfocar después de que el widget se construya
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final lastIndex = _questions.length - 1;
+      if (_focusNodes.containsKey(lastIndex)) {
+        _focusNodes[lastIndex]?.requestFocus();
+      }
     });
   }
 
   void _removeQuestion(int index) {
     setState(() {
+      _focusNodes[index]?.dispose();
+      _focusNodes.remove(index);
       _questions.removeAt(index);
     });
   }
@@ -430,6 +448,7 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
             const SizedBox(height: 12),
             TextFormField(
               initialValue: question['label'] as String,
+              focusNode: _focusNodes[index],
               decoration: InputDecoration(
                 labelText: 'Texto de la pregunta *',
                 hintText: 'Escribe la pregunta...',

@@ -264,11 +264,14 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
             ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
+      body: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
             // Información básica
             Card(
               elevation: 2,
@@ -392,7 +395,9 @@ class _CreateSurveyScreenState extends State<CreateSurveyScreen> {
                 final question = entry.value;
                 return _buildQuestionCard(index, question);
               }),
-          ],
+              ],
+            ),
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
